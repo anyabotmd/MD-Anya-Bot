@@ -1,7 +1,7 @@
 import fs from "node:fs"; import path from "node:path"; import Database from "better-sqlite3"; import {config} from "./config.js";
 fs.mkdirSync(path.dirname(config.db),{recursive:true}); const db=new Database(config.db); db.pragma("journal_mode=WAL");
 db.exec("CREATE TABLE IF NOT EXISTS users(jid TEXT PRIMARY KEY,name TEXT,coins INTEGER DEFAULT 0,xp INTEGER DEFAULT 0,level INTEGER DEFAULT 1,wins INTEGER DEFAULT 0,created INTEGER);"+
-"CREATE TABLE IF NOT EXISTS groups(jid TEXT PRIMARY KEY,prefix TEXT DEFAULT '. ',rules TEXT DEFAULT '',warnings_limit INTEGER DEFAULT 3,antilink INTEGER DEFAULT 0,antispam INTEGER DEFAULT 0,antiflood INTEGER DEFAULT 0);"+
+"CREATE TABLE IF NOT EXISTS groups(jid TEXT PRIMARY KEY,prefix TEXT DEFAULT '.',rules TEXT DEFAULT '',warnings_limit INTEGER DEFAULT 3,antilink INTEGER DEFAULT 0,antispam INTEGER DEFAULT 0,antiflood INTEGER DEFAULT 0);"+
 "CREATE TABLE IF NOT EXISTS jobs(jid TEXT PRIMARY KEY,job TEXT,worked INTEGER DEFAULT 0,last_work INTEGER DEFAULT 0);"+
 "CREATE TABLE IF NOT EXISTS pets(id INTEGER PRIMARY KEY AUTOINCREMENT,jid TEXT,species TEXT,rarity TEXT,price INTEGER,level INTEGER DEFAULT 1,xp INTEGER DEFAULT 0,hunger INTEGER DEFAULT 100,happiness INTEGER DEFAULT 100,hp INTEGER DEFAULT 100);"+
 "CREATE TABLE IF NOT EXISTS relations(jid TEXT PRIMARY KEY,partner TEXT,type TEXT,since INTEGER);"+
