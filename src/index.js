@@ -1,3 +1,4 @@
+import qrcode from "qrcode-terminal";
 import http from "node:http";
 import makeWASocket,{useMultiFileAuthState,DisconnectReason,fetchLatestBaileysVersion,jidNormalizedUser} from "@whiskeysockets/baileys"; import P from "pino"; import fs from "node:fs"; import {config} from "./config.js"; import {dispatch} from "./commands/index.js"; import * as d from "./db.js";
 fs.mkdirSync(config.auth,{recursive:true}); const log=P({level:"info"});
@@ -6,8 +7,22 @@ const server=http.createServer((req,res)=>{res.writeHead(200,{"content-type":"te
 server.listen(port,"0.0.0.0",()=>console.log("🌐 HTTP server listening on 0.0.0.0:"+port));
 const start=async()=>{const {state,saveCreds}=await useMultiFileAuthState(config.auth);const {version}=await fetchLatestBaileysVersion();const sock=makeWASocket({version,auth:state,logger:log,printQRInTerminal:false,browser:["Anya Bot","Chrome","0.1.0"]});sock.ev.on("creds.update",saveCreds);
 let pairingStarted=false;
-const requestPairingCode=async()=>{if(pairingStarted||state.creds.registered||config.qrCode||!config.phone)return;try{const phone=config.phone.replace(/\D/g,"");if(phone.length<8)throw new Error("PHONE_NUMBER inválido");pairingStarted=true;const code=await sock.requestPairingCode(phone);console.log("\n╔══════════════════════════════╗\n║       🌸 ANYA BOT 🌸         ║\n╠══════════════════════════════╣\n║ 🔑 PAIRING CODE: "+code+"     ║\n║ 📱 WhatsApp → Dispositivos   ║\n║    conectados → conectar     ║\n║    com número de telefone    ║\n╚══════════════════════════════╝\n")}catch(e){pairingStarted=false;log.error(e,"Falha no Pairing Code")}};
-sock.ev.on("connection.update",u=>{if(u.qr){if(config.qrCode){console.log("📱 QR Code recebido — escaneie pelo WhatsApp.");}else{console.log("📱 QR recebido; solicitando Pairing Code...");setTimeout(requestPairingCode,250);}}if(u.connection==="open")console.log("🌸 Anya Bot conectada! Waku waku!!");if(u.connection==="close"&&u.lastDisconnect?.error?.output?.statusCode!==DisconnectReason.loggedOut)setTimeout(start,3000)});
+const requestPairingCode=async()=>{if(pairingStarted||state.creds.registered||config.qrCode||!config.phone)return;try{
+ const phone=config.phone.replace(/\D/g,"");
+ if(phone.length<8)throw new Error("PHONE_NUMBER inválido. Use DDI + DDD + número, somente dígitos.");
+ pairingStarted=true;
+ const code=await sock.requestPairingCode(phone);
+ console.log("\n╔══════════════════════════════╗\n║       🌸 ANYA BOT 🌸         ║\n╠══════════════════════════════╣\n║ 🔑 PAIRING CODE: "+code+"     ║\n║ 📱 WhatsApp → Dispositivos   ║\n║    conectados → conectar     ║\n║    com número de telefone    ║\n╚══════════════════════════════╝\n");
+}catch(e){pairingStarted=false;log.error(e,"❌ Falha no Pairing Code");}};
+sock.ev.on("connection.update",async u=>{
+ if(u.qr){
+   if(config.qrCode){console.log("📱 QR Code recebido — escaneie agora.");qrcode.generate(u.qr,{small:true});}
+   else console.log("📱 QR interno recebido; Pairing Code será solicitado.");
+ }
+ if(u.connection==="connecting"&&!state.creds.registered&&!config.qrCode)setTimeout(requestPairingCode,500);
+ if(u.connection==="open"){console.log("🌸 Anya Bot conectada! Waku waku!!");pairingStarted=true;}
+ if(u.connection==="close"&&u.lastDisconnect?.error?.output?.statusCode!==DisconnectReason.loggedOut){setTimeout(start,3000)}
+});
 sock.ev.on("messages.upsert",async({messages,type})=>{if(type!=="notify")return;for(const m of messages){try{if(!m.message||m.key.fromMe)continue;const jid=m.key.remoteJid;if(!jid||jid==="status@broadcast")continue;const text=m.message.conversation||m.message.extendedTextMessage?.text||m.message.imageMessage?.caption||"";const sender=jidNormalizedUser(m.key.participant||jid);const isGroup=jid.endsWith("@g.us");let participants=[],admins=new Set();if(isGroup){const md=await sock.groupMetadata(jid);participants=md.participants.map(p=>p.id);admins=new Set(md.participants.filter(p=>p.admin).map(p=>p.id));d.group(jid)}
 const a=d.afkGet(sender);if(a&&!text.startsWith((isGroup?d.group(jid).prefix:config.prefix))){const old=d.afkClear(sender);await sock.sendMessage(jid,{text:"👀 @"+sender.split("@")[0]+" voltou!\n💤 Tempo em AFK: "+Math.floor((Date.now()-old.since)/60000)+"min.",mentions:[sender]})}
 if(!text.startsWith(isGroup?d.group(jid).prefix:config.prefix)){if(isGroup)for(const p of participants){if(text.includes("@"+p.split("@")[0])){const af=d.afkGet(p);if(af)await sock.sendMessage(jid,{text:"💤 @"+p.split("@")[0]+" está AFK.",mentions:[p]})}}continue}
