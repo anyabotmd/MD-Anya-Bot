@@ -34,7 +34,8 @@ sock.ev.on("connection.update",async u=>{
  if(u.connection==="open"){console.log("🌸 Anya Bot conectada! Waku waku!!");pairingStarted=true;}
  if(u.connection==="close"&&u.lastDisconnect?.error?.output?.statusCode!==DisconnectReason.loggedOut){setTimeout(start,3000)}
 });
-sock.ev.on("messages.upsert",async({messages,type})=>{if(type!=="notify")return;for(const m of messages){try{if(!m.message||(m.key.fromMe&&!config.respondSelf))continue;const jid=m.key.remoteJid;if(!jid||jid==="status@broadcast")continue;const text=m.message.conversation||m.message.extendedTextMessage?.text||m.message.imageMessage?.caption||"";const sender=jidNormalizedUser(m.key.participant||jid);const isGroup=jid.endsWith("@g.us");let participants=[],admins=new Set();if(isGroup){const md=await sock.groupMetadata(jid);participants=md.participants.map(p=>p.id);admins=new Set(md.participants.filter(p=>p.admin).map(p=>p.id));d.group(jid)}
+sock.ev.on("messages.upsert",async({messages,type})=>{if(type!=="notify")return;for(const m of messages){try{if(!m.message||(m.key.fromMe&&!config.respondSelf))continue;const jid=m.key.remoteJid;if(!jid||jid==="status@broadcast")continue;const text=(m.message.conversation||m.message.extendedTextMessage?.text||m.message.imageMessage?.caption||m.message.videoMessage?.caption||"").trim();
+console.log(`📩 Mensagem recebida de ${m.pushName||"usuário"}: ${text||"[sem texto]"}`);const sender=jidNormalizedUser(m.key.participant||jid);const isGroup=jid.endsWith("@g.us");let participants=[],admins=new Set();if(isGroup){const md=await sock.groupMetadata(jid);participants=md.participants.map(p=>p.id);admins=new Set(md.participants.filter(p=>p.admin).map(p=>p.id));d.group(jid)}
 const a=d.afkGet(sender);if(a&&!text.startsWith((isGroup?d.group(jid).prefix:config.prefix))){const old=d.afkClear(sender);await sock.sendMessage(jid,{text:"👀 @"+sender.split("@")[0]+" voltou!\n💤 Tempo em AFK: "+Math.floor((Date.now()-old.since)/60000)+"min.",mentions:[sender]})}
 if(!text.startsWith(isGroup?d.group(jid).prefix:config.prefix)){if(isGroup)for(const p of participants){if(text.includes("@"+p.split("@")[0])){const af=d.afkGet(p);if(af)await sock.sendMessage(jid,{text:"💤 @"+p.split("@")[0]+" está AFK.",mentions:[p]})}}continue}
 const prefix=isGroup?d.group(jid).prefix:config.prefix;const body=text.slice(prefix.length).trim();const z=body.split(/\s+/);const cmd=(z.shift()||"").toLowerCase();const mentioned=m.message.extendedTextMessage?.contextInfo?.mentionedJid||[];const args=[...mentioned,...z.filter(x=>!x.startsWith("@"))];const name=m.pushName||sender.split("@")[0];
@@ -56,4 +57,7 @@ if(cmd==="limpar"){await sock.sendMessage(jid,{text:"🧹 Anya não vai apagar m
 if(cmd==="prefix"&&isGroup){if(args[0]){d.setGroup(jid,"prefix",args[0]);await sock.sendMessage(jid,{text:"✨ Prefixo alterado para "+args[0]})}else await sock.sendMessage(jid,{text:"🌸 Prefixo: "+prefix});continue}
 if(cmd==="setregras"&&isGroup){d.setGroup(jid,"rules",args.join(" "));await sock.sendMessage(jid,{text:"📜 Regras atualizadas!"});continue}
 if(cmd==="regras"&&isGroup){await sock.sendMessage(jid,{text:d.group(jid).rules||"📜 Nenhuma regra configurada."});continue}
-await dispatch({sock,jid,cmd,args,sender,group:isGroup,participants,name,admin,botAdmin,admins});}catch(e){log.error(e)}}});};start();
+console.log(`⚙️ Comando: ${cmd} | prefixo: ${prefix}`);
+const handled=await dispatch({sock,jid,cmd,args,sender,group:isGroup,participants,name,admin,botAdmin,admins});
+if(!handled) console.log(`❓ Comando não encontrado: ${cmd}`);
+}catch(e){log.error(e,"❌ Erro processando mensagem")}}});};start();
