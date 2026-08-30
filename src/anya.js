@@ -1,0 +1,1 @@
+export const anya={ok:["WAKU WAKU!! ✨","Anya conseguiu!! 🥜","Hehehe... plano perfeito! 😎"],err:["Eh?! Anya fez confusão... 🥺","Ehhh?! Isso não deu certo! 😭"],pick(a){return a[Math.floor(Math.random()*a.length)]},okmsg(){return this.pick(this.ok)},errmsg(){return this.pick(this.err)}};
