@@ -14,6 +14,7 @@ const server=http.createServer(async(req,res)=>{
  }
  res.writeHead(200,{"content-type":"text/html; charset=utf-8"});res.end("🌸 Anya Bot está online!<br><a href='/qr'>Abrir QR Code</a>");
 });
+server.keepAliveTimeout=120000; server.headersTimeout=120000; server.requestTimeout=120000;
 server.listen(port,"0.0.0.0",()=>console.log("🌐 HTTP server listening on 0.0.0.0:"+port));
 const start=async()=>{const {state,saveCreds}=await useMultiFileAuthState(config.auth);const {version}=await fetchLatestBaileysVersion();const sock=makeWASocket({version,auth:state,logger:log,printQRInTerminal:false,browser:["Anya Bot","Chrome","0.1.0"]});sock.ev.on("creds.update",saveCreds);
 let pairingStarted=false;
