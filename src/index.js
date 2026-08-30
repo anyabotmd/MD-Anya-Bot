@@ -1,9 +1,19 @@
-import qrcode from "qrcode-terminal";
+import qrcodeTerminal from "qrcode-terminal";
+import QRCode from "qrcode";
 import http from "node:http";
 import makeWASocket,{useMultiFileAuthState,DisconnectReason,fetchLatestBaileysVersion,jidNormalizedUser} from "@whiskeysockets/baileys"; import P from "pino"; import fs from "node:fs"; import {config} from "./config.js"; import {dispatch} from "./commands/index.js"; import * as d from "./db.js";
 fs.mkdirSync(config.auth,{recursive:true}); const log=P({level:"info"});
 const port=Number(process.env.PORT)||10000;
-const server=http.createServer((req,res)=>{res.writeHead(200,{"content-type":"text/plain; charset=utf-8"});res.end(req.url==="/health"?"ok":"🌸 Anya Bot está online!");});
+let latestQR=null; let qrUpdatedAt=0;
+const server=http.createServer(async(req,res)=>{
+ if(req.url==="/health"){res.writeHead(200,{"content-type":"text/plain; charset=utf-8"});return res.end("ok")}
+ if(req.url==="/qr"){
+  if(!latestQR){res.writeHead(200,{"content-type":"text/html; charset=utf-8"});return res.end("<h1>🌸 Anya Bot</h1><p>QR ainda não disponível. Atualize em alguns segundos.</p>")}
+  try{const png=await QRCode.toDataURL(latestQR,{width:420,margin:2});res.writeHead(200,{"content-type":"text/html; charset=utf-8"});return res.end(`<!doctype html><html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Anya QR</title><body style="font-family:Arial;text-align:center;background:#f7f7f7;padding:24px"><h1>🌸 Anya Bot</h1><p>Escaneie este QR Code com o WhatsApp</p><img src="${png}" width="420" height="420" style="max-width:90vw;background:white;padding:10px"><p>QR atualizado: ${new Date(qrUpdatedAt).toLocaleTimeString()}</p><meta http-equiv="refresh" content="10"></body></html>`)}
+  catch(e){res.writeHead(500);return res.end("Erro ao gerar QR")}
+ }
+ res.writeHead(200,{"content-type":"text/html; charset=utf-8"});res.end("🌸 Anya Bot está online!<br><a href='/qr'>Abrir QR Code</a>");
+});
 server.listen(port,"0.0.0.0",()=>console.log("🌐 HTTP server listening on 0.0.0.0:"+port));
 const start=async()=>{const {state,saveCreds}=await useMultiFileAuthState(config.auth);const {version}=await fetchLatestBaileysVersion();const sock=makeWASocket({version,auth:state,logger:log,printQRInTerminal:false,browser:["Anya Bot","Chrome","0.1.0"]});sock.ev.on("creds.update",saveCreds);
 let pairingStarted=false;
@@ -16,7 +26,7 @@ const requestPairingCode=async()=>{if(pairingStarted||state.creds.registered||co
 }catch(e){pairingStarted=false;log.error(e,"❌ Falha no Pairing Code");}};
 sock.ev.on("connection.update",async u=>{
  if(u.qr){
-   if(config.qrCode){console.log("📱 QR Code recebido — escaneie agora.");qrcode.generate(u.qr,{small:true});}
+   if(config.qrCode){latestQR=u.qr;qrUpdatedAt=Date.now();console.log("📱 QR Code recebido — abra https://md-anya-bot.onrender.com/qr");qrcodeTerminal.generate(u.qr,{small:true});}
    else console.log("📱 QR interno recebido; Pairing Code será solicitado.");
  }
  if(u.connection==="connecting"&&!state.creds.registered&&!config.qrCode)setTimeout(requestPairingCode,500);
