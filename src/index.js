@@ -8,6 +8,18 @@ const prefix=isGroup?d.group(jid).prefix:config.prefix;const body=text.slice(pre
 const admin=isGroup&&admins.has(sender);const botAdmin=isGroup&&admins.has(jidNormalizedUser(sock.user.id));const adminCmd=["menuadm","kick","ban","promover","rebaixar","add","mutar","unmutar","antilink","antispam","antiflood","antipalavra","antifake","anticall","antipv","antimedia","bemvindo","despedida","regras","setregras","autoresposta","marcar","hidetag","marcaradmins","marcarativos","listadmins","listmembros","config","configurar","prefix","logs","limpar","warn"];
 if(adminCmd.includes(cmd)&&!admin){await sock.sendMessage(jid,{text:"😤 Só admins podem usar esse comando!"});continue}
 if(adminCmd.includes(cmd)&&["kick","ban","promover","rebaixar","add","mutar","unmutar"].includes(cmd)&&!botAdmin){await sock.sendMessage(jid,{text:"😭 Anya não tem permissão de admin!"});continue}
+if(isGroup&&admin){
+if(["kick","ban"].includes(cmd)){const t=args[0];if(!t){await sock.sendMessage(jid,{text:"👥 Mencione quem será removido."});continue}await sock.groupParticipantsUpdate(jid,[t],"remove");await sock.sendMessage(jid,{text:"👋 Removido com sucesso!",mentions:[t]});continue}
+if(cmd==="promover"||cmd==="rebaixar"){const t=args[0];if(!t){await sock.sendMessage(jid,{text:"👥 Mencione o usuário."});continue}await sock.groupParticipantsUpdate(jid,[t],cmd==="promover"?"promote":"demote");await sock.sendMessage(jid,{text:cmd==="promover"?"👑 Promovido!":"📉 Rebaixado!",mentions:[t]});continue}
+if(cmd==="add"){const t=args[0];if(!t){await sock.sendMessage(jid,{text:"👥 Informe o JID/telefone."});continue}await sock.groupParticipantsUpdate(jid,[t.includes("@")?t:t+"@s.whatsapp.net"],"add");continue}
+if(["antilink","antispam","antiflood"].includes(cmd)){const g=d.group(jid);const key=cmd;const val=g[key]?0:1;d.setGroup(jid,key,val);await sock.sendMessage(jid,{text:"🔒 "+cmd+" "+(val?"ativado":"desativado")+"!"});continue}
+if(cmd==="warn"){const t=args[0];if(!t){await sock.sendMessage(jid,{text:"⚠️ Mencione o usuário."});continue}d.raw().prepare("INSERT INTO warnings(group_jid,user_jid,count) VALUES(?,?,1) ON CONFLICT(group_jid,user_jid) DO UPDATE SET count=count+1").run(jid,t);const row=d.raw().prepare("SELECT count FROM warnings WHERE group_jid=? AND user_jid=?").get(jid,t);await sock.sendMessage(jid,{text:"⚠️ @"+t.split("@")[0]+" recebeu uma advertência!\nWarnings: "+row.count+"/"+d.group(jid).warnings_limit,mentions:[t]});if(row.count>=d.group(jid).warnings_limit&&botAdmin)await sock.groupParticipantsUpdate(jid,[t],"remove");continue}
+if(cmd==="marcar"||cmd==="hidetag"||cmd==="marcarativos"){await sock.sendMessage(jid,{text:participants.map(x=>"@"+x.split("@")[0]).join(" "),mentions:participants});continue}
+if(cmd==="marcaradmins"||cmd==="listadmins"){await sock.sendMessage(jid,{text:"👑 ADMINS\n"+[...admins].map(x=>"@"+x.split("@")[0]).join("\n"),mentions:[...admins]});continue}
+if(cmd==="listmembros"){await sock.sendMessage(jid,{text:"👥 Membros: "+participants.length});continue}
+if(cmd==="logs"||cmd==="config"||cmd==="configurar"){await sock.sendMessage(jid,{text:"⚙️ Configuração registrada no banco."});continue}
+if(cmd==="limpar"){await sock.sendMessage(jid,{text:"🧹 Anya não vai apagar mensagens aleatórias."});continue}
+}
 if(cmd==="prefix"&&isGroup){if(args[0]){d.setGroup(jid,"prefix",args[0]);await sock.sendMessage(jid,{text:"✨ Prefixo alterado para "+args[0]})}else await sock.sendMessage(jid,{text:"🌸 Prefixo: "+prefix});continue}
 if(cmd==="setregras"&&isGroup){d.setGroup(jid,"rules",args.join(" "));await sock.sendMessage(jid,{text:"📜 Regras atualizadas!"});continue}
 if(cmd==="regras"&&isGroup){await sock.sendMessage(jid,{text:d.group(jid).rules||"📜 Nenhuma regra configurada."});continue}
