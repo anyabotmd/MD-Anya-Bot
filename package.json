@@ -9,7 +9,7 @@
     "check": "node --check src/index.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "^6.7.18",
+    "@whiskeysockets/baileys": "6.7.22",
     "better-sqlite3": "^11.7.0",
     "dotenv": "^16.4.7",
     "pino": "^9.6.0",
